@@ -28,7 +28,7 @@ Required parameters:
 
 ```php
 <?php
-$config => array(
+$config = array(
 	'client_id' => 'YOUR APP ID',
 	'client_secret' => 'YOUR APP SECRET',
   'redirect_uri' => 'YOUR REDIRECT URI (HAS TO MATCH EXACTLY)',
