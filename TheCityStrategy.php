@@ -9,7 +9,7 @@
  * @package      Opauth.TheCityStrategy
  * @license      MIT License
  */
-
+require('./opauth/lib/Opauth/OpauthStrategy.php');
 /**
  * Google strategy for Opauth
  * based on https://developers.google.com/accounts/docs/OAuth2
@@ -50,7 +50,7 @@ class TheCityStrategy extends OpauthStrategy{
 		);
 
 		if ($this->strategy['subdomain']) {
-		  $params['subdomain'] => $this->strategy['subdomain']
+		  $params['subdomain'] = $this->strategy['subdomain'];
     }
 
 		foreach ($this->optionals as $key){
