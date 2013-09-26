@@ -26,7 +26,7 @@ class TheCityStrategy extends OpauthStrategy{
 	/**
 	 * Optional config keys, without predefining any default values.
 	 */
-	public $optionals = array('redirect_uri', 'scope', 'state', 'access_type', 'approval_prompt');
+	public $optionals = array('redirect_uri', 'scope', 'state', 'subdomain');
 
 	/**
 	 * Optional config keys with respective default values, listed as associative arrays
@@ -34,20 +34,24 @@ class TheCityStrategy extends OpauthStrategy{
 	 */
 	public $defaults = array(
 		'redirect_uri' => '{complete_url_to_strategy}oauth2callback',
-		'scope' => 'https://www.googleapis.com/auth/userinfo.profile https://www.googleapis.com/auth/userinfo.email'
+		'scope' => 'user_basic'
 	);
 
 	/**
 	 * Auth request
 	 */
 	public function request(){
-		$url = 'https://accounts.google.com/o/oauth2/auth';
+		$url = 'https://authentication.onthecity.org/oauth/authorize';
 		$params = array(
 			'client_id' => $this->strategy['client_id'],
 			'redirect_uri' => $this->strategy['redirect_uri'],
 			'response_type' => 'code',
 			'scope' => $this->strategy['scope']
 		);
+
+		if ($this->strategy['subdomain']) {
+		  $params['subdomain'] => $this->strategy['subdomain']
+    }
 
 		foreach ($this->optionals as $key){
 			if (!empty($this->strategy[$key])) $params[$key] = $this->strategy[$key];
@@ -62,7 +66,7 @@ class TheCityStrategy extends OpauthStrategy{
 	public function oauth2callback(){
 		if (array_key_exists('code', $_GET) && !empty($_GET['code'])){
 			$code = $_GET['code'];
-			$url = 'https://accounts.google.com/o/oauth2/token';
+			$url = 'https://authentication.onthecity.org/oauth/token';
 			$params = array(
 				'code' => $code,
 				'client_id' => $this->strategy['client_id'],
@@ -73,7 +77,8 @@ class TheCityStrategy extends OpauthStrategy{
 			$response = $this->serverPost($url, $params, null, $headers);
 
 			$results = json_decode($response);
-
+      print_r($results);
+      die();
 			if (!empty($results) && !empty($results->access_token)){
 				$userinfo = $this->userinfo($results->access_token);
 
@@ -92,11 +97,10 @@ class TheCityStrategy extends OpauthStrategy{
 					$this->auth['credentials']['refresh_token'] = $results->refresh_token;
 				}
 
-				$this->mapProfile($userinfo, 'name', 'info.name');
 				$this->mapProfile($userinfo, 'email', 'info.email');
-				$this->mapProfile($userinfo, 'given_name', 'info.first_name');
-				$this->mapProfile($userinfo, 'family_name', 'info.last_name');
-				$this->mapProfile($userinfo, 'picture', 'info.image');
+				$this->mapProfile($userinfo, 'first', 'info.first_name');
+				$this->mapProfile($userinfo, 'last', 'info.last_name');
+				$this->mapProfile($userinfo, 'profile_picture', 'info.profile_picture');
 
 				$this->callback();
 			}
@@ -130,7 +134,7 @@ class TheCityStrategy extends OpauthStrategy{
 	 * @return array Parsed JSON results
 	 */
 	private function userinfo($access_token){
-		$userinfo = $this->serverGet('https://www.googleapis.com/oauth2/v1/userinfo', array('access_token' => $access_token), null, $headers);
+		$userinfo = $this->serverGet('https:/authentication.onthecity.org/authorize', array('access_token' => $access_token), null, $headers);
 		if (!empty($userinfo)){
 			return $this->recursiveGetObjectVars(json_decode($userinfo));
 		}
