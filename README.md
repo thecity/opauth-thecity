@@ -28,9 +28,11 @@ Required parameters:
 
 ```php
 <?php
-'TheCity' => array(
+$config => array(
 	'client_id' => 'YOUR APP ID',
-	'client_secret' => 'YOUR APP SECRET'
+	'client_secret' => 'YOUR APP SECRET',
+  'redirect_uri' => 'YOUR REDIRECT URI (HAS TO MATCH EXACTLY)',
+  'scope' => 'THE SCOPE TO ALLOW',
 )
 ```
 
