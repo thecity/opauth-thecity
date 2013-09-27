@@ -24,25 +24,33 @@ class TheCityStrategy extends OpauthStrategy{
 	 */
 	public $expects = array('client_id', 'client_secret');
 
-	/**
-	 * Optional config keys, without predefining any default values.
-	 */
-	public $optionals = array('redirect_uri', 'scope', 'state', 'subdomain');
+	var $city_base_url = 'https://authentication.onthecity.org';
+	private $oauth_path;
+	private $oauth_authorize_path;
+	private $oauth_token_path;
+	private $oauth_authorization_path;
 
 	/**
-	 * Optional config keys with respective default values, listed as associative arrays
-	 * eg. array('scope' => 'email');
+	 * Construct method.
+	 *
+	 * Initialize default properties.
+	 *
+	 * @param array $strategy Strategy-specific configuration
+	 * @param array $env Safe env values from Opauth, with critical parameters stripped out
 	 */
-	public $defaults = array(
-		'redirect_uri' => '{complete_url_to_strategy}oauth2callback',
-		'scope' => 'user_basic'
-	);
+	public function __construct($strategy, $env) {
+		$this->oauth_path = $this->city_base_url . '/oauth';
+		$this->oauth_authorize_path = $this->oauth_path . '/authorize';
+		$this->oauth_token_path = $this->oauth_path . '/token';
+		$this->oauth_authorization_path = $this->city_base_url . '/authorization';
+
+		parent::__construct($strategy, $env);
+	}
 
 	/**
 	 * Auth request
 	 */
 	public function request(){
-		$url = 'https://authentication.onthecity.org/oauth/authorize';
 		$params = array(
 			'client_id' => $this->strategy['client_id'],
 			'redirect_uri' => $this->strategy['redirect_uri'],
@@ -57,17 +65,15 @@ class TheCityStrategy extends OpauthStrategy{
 		foreach ($this->optionals as $key){
 			if (!empty($this->strategy[$key])) $params[$key] = $this->strategy[$key];
 		}
-
-		$this->clientGet($url, $params);
+		$this->clientGet($this->oauth_authorize_path, $params);
 	}
 
 	/**
 	 * Internal callback, after OAuth
 	 */
 	public function oauth2callback(){
-		if (array_key_exists('code', $_GET) && !empty($_GET['code'])){
+		if (!empty($_GET['code'])){
 			$code = $_GET['code'];
-			$url = 'https://authentication.onthecity.org/oauth/token';
 			$params = array(
 				'code' => $code,
 				'client_id' => $this->strategy['client_id'],
@@ -75,20 +81,19 @@ class TheCityStrategy extends OpauthStrategy{
 				'redirect_uri' => $this->strategy['redirect_uri'],
 				'grant_type' => 'authorization_code'
 			);
-			$response = $this->serverPost($url, $params, null, $headers);
-
+			$response = $this->serverPost($this->oauth_token_path, $params, null, $headers);
 			$results = json_decode($response);
 			if (!empty($results) && !empty($results->access_token)) {
-				$userinfo = $this->userinfo($results->access_token);
+				$user_info = $this->userInfo($results->access_token);
 
 				$this->auth = array(
-					'uid' => $userinfo['id'],
+					'uid' => $user_info['id'],
 					'info' => array(),
 					'credentials' => array(
 						'token' => $results->access_token,
 						'expires' => date('c', time() + $results->expires_in)
 					),
-					'raw' => $userinfo
+					'raw' => $user_info
 				);
 
 				if (!empty($results->refresh_token))
@@ -96,10 +101,10 @@ class TheCityStrategy extends OpauthStrategy{
 					$this->auth['credentials']['refresh_token'] = $results->refresh_token;
 				}
 
-				$this->mapProfile($userinfo, 'email', 'info.email');
-				$this->mapProfile($userinfo, 'first', 'info.first_name');
-				$this->mapProfile($userinfo, 'last', 'info.last_name');
-				$this->mapProfile($userinfo, 'profile_picture', 'info.profile_picture');
+				$this->mapProfile($user_info, 'email', 'info.email');
+				$this->mapProfile($user_info, 'first', 'info.first_name');
+				$this->mapProfile($user_info, 'last', 'info.last_name');
+				$this->mapProfile($user_info, 'profile_picture', 'info.profile_picture');
 echo '<pre>';
 print_r($this->auth);
 echo '</pre>';die;
@@ -134,17 +139,23 @@ echo '</pre>';die;
 	 * @param string $access_token 
 	 * @return array Parsed JSON results
 	 */
-	private function userinfo($access_token, array $options = array()){
-		$userinfo = $this->serverGet('https://authentication.onthecity.org/authorization', array('access_token' => $access_token, 'format' => 'json'), NULL, $options);
-		if (!empty($userinfo)){
-			return $this->recursiveGetObjectVars(json_decode($userinfo));
+	private function userInfo($access_token, array $options = array(), string $responseHeaders = NULL){
+		$userInfo = $this->serverGet(
+			$this->oauth_authorization_path,
+			array('access_token' => $access_token, 'format' => 'json'),
+			NULL,
+			$options
+		);
+		//$userinfo = $this->serverGet('https://authentication.onthecity.org/authorization', array('access_token' => $access_token, 'format' => 'json'), NULL, $options);
+		if (!empty($userInfo)){
+			return $this->recursiveGetObjectVars(json_decode($userInfo));
 		}
 		else{
 			$error = array(
 				'code' => 'userinfo_error',
 				'message' => 'Failed when attempting to query for user information',
 				'raw' => array(
-					'response' => $userinfo,
+					'response' => $userInfo,
 					'headers' => $headers
 				)
 			);
