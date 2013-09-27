@@ -10,6 +10,7 @@
  * @license      MIT License
  */
 require('./opauth/lib/Opauth/OpauthStrategy.php');
+
 /**
  * Google strategy for Opauth
  * based on https://developers.google.com/accounts/docs/OAuth2
@@ -49,7 +50,7 @@ class TheCityStrategy extends OpauthStrategy{
 			'scope' => $this->strategy['scope']
 		);
 
-		if ($this->strategy['subdomain']) {
+		if (isset($this->strategy['subdomain'])) {
 		  $params['subdomain'] = $this->strategy['subdomain'];
     }
 
@@ -77,9 +78,7 @@ class TheCityStrategy extends OpauthStrategy{
 			$response = $this->serverPost($url, $params, null, $headers);
 
 			$results = json_decode($response);
-      print_r($results);
-      die();
-			if (!empty($results) && !empty($results->access_token)){
+			if (!empty($results) && !empty($results->access_token)) {
 				$userinfo = $this->userinfo($results->access_token);
 
 				$this->auth = array(
@@ -101,7 +100,9 @@ class TheCityStrategy extends OpauthStrategy{
 				$this->mapProfile($userinfo, 'first', 'info.first_name');
 				$this->mapProfile($userinfo, 'last', 'info.last_name');
 				$this->mapProfile($userinfo, 'profile_picture', 'info.profile_picture');
-
+echo '<pre>';
+print_r($this->auth);
+echo '</pre>';die;
 				$this->callback();
 			}
 			else{
@@ -133,8 +134,8 @@ class TheCityStrategy extends OpauthStrategy{
 	 * @param string $access_token 
 	 * @return array Parsed JSON results
 	 */
-	private function userinfo($access_token){
-		$userinfo = $this->serverGet('https:/authentication.onthecity.org/authorize', array('access_token' => $access_token), null, $headers);
+	private function userinfo($access_token, array $options = array()){
+		$userinfo = $this->serverGet('https://authentication.onthecity.org/authorization', array('access_token' => $access_token, 'format' => 'json'), NULL, $options);
 		if (!empty($userinfo)){
 			return $this->recursiveGetObjectVars(json_decode($userinfo));
 		}
